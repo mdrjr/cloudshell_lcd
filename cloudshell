@@ -110,7 +110,10 @@ CBLUE=$(tput setaf 6)
 oc="/dev/$OUTPUT_CONSOLE"
 
 # font setup
-setfont $CONSOLE_FONT
+setfont $CONSOLE_FONT > $oc
+
+# disable console blanking
+setterm -blank 0 -powersave off > $oc
 
 # infinite loop
 while true; do
