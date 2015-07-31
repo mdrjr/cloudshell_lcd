@@ -1,0 +1,166 @@
+#!/bin/bash
+
+# Hardkernel CloudShell Screen update
+#
+# requires the following packages:
+# curl sysstat
+#
+# Tested on Ubuntu 14.04 Server image
+
+############## Configuration
+
+# console font
+# More fonts on: /usr/share/consolefonts
+export CONSOLE_FONT="Lat15-Fixed18"
+
+# Output Console
+export OUTPUT_CONSOLE="tty1"
+
+# Network Interface: eth0, wlan0, ....
+export NETIF="eth0"
+
+# SATA HDD mount
+export SATA="/dev/sda1"
+
+# Screen refresh in seconds
+export REFRESH="3"
+
+# CPU Temperature in C or F
+export TEMPERATURE_FORMAT="C"
+
+# External IP Refresh counts
+# The time to update the ip in counts is acquired by using the following formula
+# seconds_to_refresh = EXT_IP_REFRESH * REFRESH
+export EXT_IP_REFRESH="100"
+
+get_external_ip() {
+	export EXTERNAL_IP=`curl -s http://mdrjr.net/ip.php`
+}
+
+get_full_date() {
+	export DATE=`date +"%Y-%m-%d %H:%M:%S"`
+}
+
+get_hostname() {
+	export HOSTNAME=`hostname`
+}
+
+get_internal_ip() {
+	export INTERNAL_IP=`ifconfig $NETIF | grep 'inet addr:'| cut -d: -f2 | awk '{ print $1}'`
+}
+
+get_net_tx_rx_realtime() {
+	net_txrx=`sar -n DEV 1 1 | grep $NETIF | tail -n 1 | gawk '{print $5" "$6}'`
+	# in MB/s
+	_tx=`echo $net_txrx | awk '{printf $1}'`
+	_rx=`echo $net_txrx | awk '{printf $2}'`
+	export NET_TX=`echo "scale=1; x=$_tx/1024; if(x<1) print 0; x" | bc`
+	export NET_RX=`echo "scale=1; x=$_rx/1024; if(x<1) print 0; x" | bc`
+	
+}
+
+get_disk_info() {
+	t=`df -h | grep $SATA`
+	export DISK_SIZE=`echo $t | awk '{printf $2}'`
+	export DISK_USED=`echo $t | awk '{printf $3}'`
+	export DISK_FREE=`echo $t | awk '{printf $4}'`
+	export DISK_USED_PCT=`echo $t | awk '{printf $5}'`
+}
+
+get_memory_info() {
+	# in Mbytes
+	export MEM_FREE=$[`cat /proc/meminfo | grep MemFree | awk '{print $2'}` / 1024]
+	export MEM_TOTAL=$[`cat /proc/meminfo | grep MemTotal | awk '{print $2'}` / 1024]
+	export MEM_USED=$[$MEM_TOTAL - $MEM_FREE]
+}
+
+get_cpu_usage() { 
+	cpufree=`mpstat 1 1 | tail -n 1 | awk '{printf $12}'`
+	export CPU_USAGE=`echo "scale=1; x=100-$cpufree; if(x<1) print 0; x" | bc`
+}
+
+get_cpu_temperature() {
+	_t=$[`cat /sys/class/thermal/thermal_zone0/temp` / 1000]
+	if [ "$TEMPERATURE_FORMAT" = "C" ]; then
+		export CPU_TEMP="$_t"C
+	else
+		_t1=$[ $_t * 9 / 5 + 32 ]
+		export CPU_TEMP="$_t1"F
+	fi
+}
+
+get_samba_connections() {
+	export SAMBA_CONNECTIONS=`smbstatus -b | grep -c ipv`
+}
+
+get_nfs_connections() { 
+	export NFS_CONNECTIONS=`netstat -an | grep 2049 | grep -c ESTA`
+}
+
+get_process_count() { 
+	export PROCESS_COUNT=`ps xa | wc -l`
+}
+
+# local variables
+ext_ip_refresh_c=0
+COFF=$(tput sgr0)
+CGREEN=$(tput setaf 2)
+CRED=$(tput setaf 1)
+CBLUE=$(tput setaf 6)
+oc="/dev/$OUTPUT_CONSOLE"
+
+# font setup
+setfont $CONSOLE_FONT
+
+# infinite loop
+while true; do
+
+	# check if EXT_IP_REFRESH
+	if (( ($ext_ip_refresh_c % $EXT_IP_REFRESH) == 0 )); then
+		get_external_ip
+	fi
+	
+	# increment $ext_ip_refresh_c
+	ext_ip_refresh_c=$[$ext_ip_refresh_c+1]
+
+	# get data
+	get_internal_ip
+	get_hostname
+	get_disk_info
+	get_full_date
+	get_net_tx_rx_realtime
+	get_memory_info
+	get_cpu_usage
+	get_cpu_temperature
+	get_samba_connections
+	get_nfs_connections
+    get_process_count
+    	
+	# clear the screen every loop
+	# we only wipe the screen when we are ready to write data to it
+	clear > $oc
+
+	# format the data on screen
+	echo "" > $oc
+	echo -e "$CBLUE $HOSTNAME $COFF: $DATE" > $oc
+    echo "" > $oc
+	# line CPU Usage
+	echo -e "CPU Usage: $CBLUE$CPU_USAGE%$COFF   CPU Temp: $CBLUE$CPU_TEMP$COFF" > $oc
+    # Line Memory
+    echo -e "Memory Free: $CBLUE$MEM_FREE MB$COFF   Used: $CBLUE$MEM_USED MB$COFF" > $oc
+	# Line IP Addresses
+	echo -e "IP: $CBLUE$INTERNAL_IP$COFF   Rem: $CBLUE$EXTERNAL_IP$COFF" > $oc
+	# Line network usage
+	echo -e "TX: $CBLUE$NET_TX MB/s$COFF RX: $CBLUE$NET_RX MB/s$COFF" > $oc
+	# Line Disk Space
+	echo -e "Disk Used: $CBLUE$DISK_USED$COFF ($CBLUE$DISK_USED_PCT$COFF)  Free: $CBLUE$DISK_FREE$COFF" > $oc
+    # Line Samba
+    echo -e "Samba Clients: $CBLUE$SAMBA_CONNECTIONS$COFF" > $oc
+    # line NFS
+    echo -e "NFS Connections: $CBLUE$NFS_CONNECTIONS$COFF" > $oc
+	# line Processes
+	echo -e "Processes Running: $CBLUE$PROCESS_COUNT$COFF" > $oc
+
+	# sleep
+	sleep $REFRESH
+done
