@@ -38,7 +38,7 @@ get_external_ip() {
 }
 
 get_full_date() {
-	export DATE=`date +"%Y-%m-%d %H:%M:%S"`
+	export MDATE="`date +"%Y-%m-%d %H:%M:%S"`"
 }
 
 get_hostname() {
@@ -50,7 +50,7 @@ get_internal_ip() {
 }
 
 get_net_tx_rx_realtime() {
-	net_txrx=`sar -n DEV 1 1 | grep $NETIF | tail -n 1 | gawk '{print $5" "$6}'`
+	net_txrx=`sar -n DEV 1 1 | grep $NETIF | tail -n 1 | sed -e 's/,/./g' | gawk '{print $5" "$6}'`
 	# in MB/s
 	_tx=`echo $net_txrx | awk '{printf $1}'`
 	_rx=`echo $net_txrx | awk '{printf $2}'`
@@ -69,22 +69,25 @@ get_disk_info() {
 
 get_memory_info() {
 	# in Mbytes
-	export MEM_FREE=$[`cat /proc/meminfo | grep MemFree | awk '{print $2'}` / 1024]
-	export MEM_TOTAL=$[`cat /proc/meminfo | grep MemTotal | awk '{print $2'}` / 1024]
-	export MEM_USED=$[$MEM_TOTAL - $MEM_FREE]
+	_m1=`cat /proc/meminfo | grep MemFree | awk '{print $2'}`
+	export MEM_FREE=`echo "$_m1 / 1024" |bc`
+	_m2=`cat /proc/meminfo | grep MemTotal | awk '{print $2'}`
+	export MEM_TOTAL=`echo "$_m2 / 1024" |bc`
+	export MEM_USED=`echo "$MEM_TOTAL - $MEM_FREE"|bc`
 }
 
 get_cpu_usage() { 
-	cpufree=`mpstat 1 1 | tail -n 1 | awk '{printf $12}'`
-	export CPU_USAGE=`echo "scale=1; x=100-$cpufree; if(x<1) print 0; x" | bc`
+	cpufree="`mpstat 1 1 | tail -n 1 | sed -e 's/,/./g' |awk '{printf $12}'`"
+	export CPU_USAGE="`echo "scale=1; x=100-$cpufree; if(x<1) print 0; x" | bc`"
 }
 
 get_cpu_temperature() {
-	_t=$[`cat /sys/class/thermal/thermal_zone0/temp` / 1000]
+	_t=`cat /sys/class/thermal/thermal_zone0/temp`
+	_tt=`echo "$_t /  1000" |bc`
 	if [ "$TEMPERATURE_FORMAT" = "C" ]; then
-		export CPU_TEMP="$_t"C
+		export CPU_TEMP="$_tt"C
 	else
-		_t1=$[ $_t * 9 / 5 + 32 ]
+		_t1=$[ $_tt * 9 / 5 + 32 ]
 		export CPU_TEMP="$_t1"F
 	fi
 }
@@ -113,15 +116,16 @@ oc="/dev/$OUTPUT_CONSOLE"
 setfont $CONSOLE_FONT > $oc
 
 # disable console blanking
+#setterm -blank 0  > $oc
 setterm -blank 0 -powersave off > $oc
 
 # infinite loop
 while true; do
 
 	# check if EXT_IP_REFRESH
-	if (( ($ext_ip_refresh_c % $EXT_IP_REFRESH) == 0 )); then
+	#if (( ($ext_ip_refresh_c % $EXT_IP_REFRESH) == 0 )); then
 		get_external_ip
-	fi
+	#fi
 	
 	# increment $ext_ip_refresh_c
 	ext_ip_refresh_c=$[$ext_ip_refresh_c+1]
@@ -137,7 +141,7 @@ while true; do
 	get_cpu_temperature
 	get_samba_connections
 	get_nfs_connections
-    get_process_count
+    	get_process_count
     	
 	# clear the screen every loop
 	# we only wipe the screen when we are ready to write data to it
@@ -145,7 +149,7 @@ while true; do
 
 	# format the data on screen
 	echo "" > $oc
-	echo -e "$CBLUE $HOSTNAME $COFF: $DATE" > $oc
+	echo -e "$CBLUE $HOSTNAME $COFF: $MDATE" > $oc
     echo "" > $oc
 	# line CPU Usage
 	echo -e "CPU Usage: $CBLUE$CPU_USAGE%$COFF   CPU Temp: $CBLUE$CPU_TEMP$COFF" > $oc
