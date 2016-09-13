@@ -11,10 +11,11 @@
 
 # console font
 # More fonts on: /usr/share/consolefonts
+export TERM="linux"
 export CONSOLE_FONT="Lat15-Fixed18"
 
-# Output Console
-export OUTPUT_CONSOLE="tty1"
+# Output Console (ttyX)
+export OUTPUT_CONSOLE="1"
 
 # Network Interface: eth0, wlan0, ....
 export NETIF="eth0"
@@ -31,10 +32,10 @@ export TEMPERATURE_FORMAT="C"
 # External IP Refresh counts
 # The time to update the ip in counts is acquired by using the following formula
 # seconds_to_refresh = EXT_IP_REFRESH * REFRESH
-export EXT_IP_REFRESH="100"
+export EXT_IP_REFRESH="10"
 
 get_external_ip() {
-	export EXTERNAL_IP=`curl -s http://mdrjr.net/ip.php`
+	export EXTERNAL_IP=`/usr/bin/curl -s http://mdrjr.net/ip.php`
 }
 
 get_full_date() {
@@ -90,7 +91,11 @@ get_cpu_temperature() {
 }
 
 get_samba_connections() {
-	export SAMBA_CONNECTIONS=`smbstatus -b | grep -c ipv`
+	if [ ! -f /usr/bin/smbstatus ]; then
+		export SAMBA_CONNECTIONS=0
+	else
+		export SAMBA_CONNECTIONS=`smbstatus -b | grep -c ipv`
+	fi
 }
 
 get_nfs_connections() { 
@@ -107,16 +112,19 @@ COFF=$(tput sgr0)
 CGREEN=$(tput setaf 2)
 CRED=$(tput setaf 1)
 CBLUE=$(tput setaf 6)
-oc="/dev/$OUTPUT_CONSOLE"
+oc="/dev/tty$OUTPUT_CONSOLE"
 
 # font setup
 setfont $CONSOLE_FONT > $oc
 
-# disable console blanking
-setterm -blank 0 -powersave off > $oc
+# Ensure that we are in the right TTY
+chvt $OUTPUT_CONSOLE
 
 # infinite loop
 while true; do
+
+	# Ensure that we are in the right TTY
+	chvt $OUTPUT_CONSOLE
 
 	# check if EXT_IP_REFRESH
 	if (( ($ext_ip_refresh_c % $EXT_IP_REFRESH) == 0 )); then

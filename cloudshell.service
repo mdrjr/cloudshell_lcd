@@ -1,0 +1,13 @@
+[Unit]
+Description="ODROID Cloudshell LCD Info"
+DefaultDependencies=no
+Requires=sysinit.target
+After=sysinit.target
+
+[Service]
+Type=simple
+ExecStart=/bin/cloudshell
+
+[Install]
+WantedBy=basic.target
+WantedBy=sysinit.target

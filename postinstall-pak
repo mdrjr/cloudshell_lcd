@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Replace the eth0 with the new systemd styled network interface name
+export ETH=`/sbin/ifconfig | grep enx001e | awk '{print $1}'`
+sed -i s/"eth0"/"$ETH"/g /bin/cloudshell
+
+# enable the service for the next boot
+systemctl enable cloudshell

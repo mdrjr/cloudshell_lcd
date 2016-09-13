@@ -1,3 +1,4 @@
 install:
 	cp cloudshell /bin
-	cp cloudshell.conf /etc/init
+	cp cloudshell.service /lib/systemd/system
+
