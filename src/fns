@@ -1,0 +1,76 @@
+#!/bin/bash
+
+get_external_ip() {
+  export wan_ip=$(/usr/bin/curl -s http://mdrjr.net/ip.php)
+}
+
+get_full_date() {
+  export DATE=$(date +"%Y-%m-%d %H:%M:%S")
+}
+
+get_hostname() {
+  export HOSTNAME=$(hostname)
+}
+
+get_internal_ip() {
+  export lan_ip=$(ifconfig $interface | grep 'inet '| cut -d: -f2 | awk '{print $2}')
+}
+
+get_net_tx_rx_realtime() {
+  net_txrx=$(sar -n DEV 1 1 | grep $interface | tail -n 1 | gawk '{print $5" "$6}')
+  # in MB/s
+  _tx=$(echo $net_txrx | awk '{printf $1}')
+  _rx=$(echo $net_txrx | awk '{printf $2}')
+  export net_tx=$(echo "scale=1; x=$_tx/1024; if(x<0.1) print 0.0; x" | bc)
+  export net_rx=$(echo "scale=1; x=$_rx/1024; if(x<0.1) print 0.0; x" | bc)
+
+}
+
+get_disk_info() {
+  t=$(df -h | grep $root_fs)
+  export DISK_SIZE=$(echo $t | awk '{printf $2}')
+  export DISK_USED=$(echo $t | awk '{printf $3}')
+  export DISK_FREE=$(echo $t | awk '{printf $4}')
+  export DISK_USED_PCT=$(echo $t | awk '{printf $5}')
+}
+
+get_memory_info() {
+  # in Mbytes
+  export mem_free=$[`cat /proc/meminfo | grep MemFree | awk '{print $2'}` / 1024]
+  export mem_total=$[`cat /proc/meminfo | grep MemTotal | awk '{print $2'}` / 1024]
+  export mem_used=$[$mem_total - $mem_free]
+  export mem_per=$(echo "scale=1; $mem_used / $mem_total * 114" | bc)
+}
+
+get_cpu_usage() {
+  cpufree=$(mpstat 1 1 | tail -n 1 | awk '{printf $12}')
+  export cpu_usage=$(echo "scale=1; x=100-$cpufree; if(x<0.001) print 0.001; x" | bc)
+}
+
+get_cpu_temperature() {
+  _t=$[`cat /sys/class/thermal/thermal_zone0/temp` / 1000]
+  if [ "$temperature_format" = "C" ]; then
+    export CPU_TEMP="$_t"C
+  else
+    _t1=$[ $_t * 9 / 5 + 32 ]
+    export CPU_TEMP="$_t1"F
+  fi
+}
+
+get_samba_connections() {
+  if [ ! -f /usr/bin/smbstatus ]; then
+    export samba_connections=0
+  else
+    export samba_connections=$(smbstatus -b | grep -c ipv)
+  fi
+}
+
+get_nfs_connections() {
+  export NFS_CONNECTIONS=$(netstat -an | grep 2049 | grep -c ESTA)
+}
+
+get_process_count() {
+  export PROCESS_COUNT=`ps xa | wc -l`
+}
+
+

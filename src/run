@@ -1,0 +1,50 @@
+#!/bin/bash
+
+source ./src/vars
+source ./src/fns
+
+# This isn't likely to change often
+get_hostname
+
+# Stuff I don't personally use so don't want to waste CPU cycles
+get_samba_connections
+get_nfs_connections
+
+# infinite loop
+while true; do
+# Ensure that we are in the right TTY
+  chvt $terminal
+
+  # check if ext_ip_refresh
+  if (( ($ext_ip_refresh_c % $ext_ip_refresh) == 0 )); then
+    get_external_ip
+  fi
+
+  # increment $ext_ip_refresh_c
+  ext_ip_refresh_c=$[$ext_ip_refresh_c+1]
+
+  # get data
+  get_full_date
+  get_cpu_usage
+  get_cpu_temperature
+  get_memory_info
+  get_disk_info
+  get_internal_ip
+  get_net_tx_rx_realtime
+  get_process_count
+
+  clear > $oc
+  echo "" > $oc
+  echo -e "$blue $HOSTNAME $off: $DATE" > $oc
+  echo "" > $oc
+  echo -e " CPU Usage: $blue$cpu_usage%$off\tCPU Temp: $blue$CPU_TEMP$off" > $oc
+  echo -e " RAM Usage: $blue${mem_used}m$off($blue$mem_per%)$off\tRAM Free: $blue$mem_free m$off" > $oc
+  echo -e " Disk Used: $blue${DISK_USED} $off($blue$DISK_USED_PCT$off)\tDisk Free: $blue$DISK_FREE$off" > $oc
+  echo -e " WAN: $blue$wan_ip$off\tRX: $blue$net_rx MB/s$off" > $oc
+  echo -e " LAN: $blue$lan_ip$off\tTX: $blue$net_tx MB/s$off" > $oc
+  echo -e " Samba clients: $blue$samba_connections$off" > $oc
+  echo -e " NFS Connections: $blue$NFS_CONNECTIONS$off" > $oc
+  echo -e " Processes Running: $blue$PROCESS_COUNT$off" > $oc
+
+  sleep $REFRESH
+done

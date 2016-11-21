@@ -1,0 +1,21 @@
+#!/bin/bash
+
+export terminal="1"
+export font="Lat2-Terminus16.psfu.gz"
+oc="/dev/tty$terminal"
+setfont $font > $oc
+
+export interface="eth0"
+export root_fs="/dev/root"
+export REFRESH="2"
+export temperature_format="F"
+export ext_ip_refresh="10"
+
+# local variables
+ext_ip_refresh_c=0
+off=$(tput sgr0)
+green=$(tput setaf 2)
+red=$(tput setaf 1)
+blue=$(tput setaf 6)
+
+

@@ -1,0 +1,8 @@
+pkgname = cloudshell-archlinux
+pkgver = 1.0.0-1
+pkgdesc = Cloudshell stats for arch linux host
+url = http://github.com/skilbjo/cloudshell-archlinux
+builddate = 1323390194
+packager = manual
+size = 8192
+arch = armv7h
