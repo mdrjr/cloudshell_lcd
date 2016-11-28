@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+build() {
+  tar -cf - .PKGINFO | xz -c -z - > ../clouldshell-archlinux.pkg.tar.xz
+}
+
+install() {
+  sudo pacman -U clouldshell-archlinux.pkg.tar.xz
+}
+
+uninstall() {
+  sudo pacman -R clouldshell-archlinux
+}
+
+build

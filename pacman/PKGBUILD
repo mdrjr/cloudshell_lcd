@@ -1,0 +1,29 @@
+# Maintainer:   skilbjo
+pkgname=clouldshell-archlinux
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Stats for clouldshell archlinux'
+url='https://github.com/skilbjo/clouldshell-archlinux'
+arch=('armv7h')
+license=('GPL')
+depends=('bc' 'curl' 'sysstat')
+makedepends=()
+optdepends=()
+conflicts=()
+options=()
+backup=()
+source=()
+
+prepare() {
+  cd "$pkgname-$pkgver"
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+}
+md5sums=()
+
