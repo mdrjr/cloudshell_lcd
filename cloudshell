@@ -18,7 +18,9 @@ export CONSOLE_FONT="Lat15-Fixed18"
 export OUTPUT_CONSOLE="1"
 
 # Network Interface: eth0, wlan0, ....
-export NETIF="eth0"
+#Find Default eth0 device for new systemd configurations...
+ETHFIND=$(ifconfig | grep Link | awk '{print $1}' | sort | egrep -v 'inet6|lo')
+export NETIF="$ETHFIND"
 
 # SATA HDD mount
 export SATA="/dev/sda1"
