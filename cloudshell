@@ -117,6 +117,9 @@ oc="/dev/tty$OUTPUT_CONSOLE"
 # font setup
 setfont $CONSOLE_FONT > $oc
 
+# Turn off the cursor
+setterm -cursor off > $oc
+
 # Ensure that we are in the right TTY
 chvt $OUTPUT_CONSOLE
 
