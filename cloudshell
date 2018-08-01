@@ -22,7 +22,7 @@ NETIF=$(ifconfig | awk 'NR==1{print $1}')
 export NETIF
 
 # SATA HDD mount
-export SATA="/dev/mmcblk1p2"
+export SATA="/dev/sda"
 
 # Screen refresh in seconds
 export REFRESH="0"
@@ -51,12 +51,12 @@ get_hostname() {
 }
 
 get_internal_ip() {
-        INTERNAL_IP=$(ifconfig $NETIF | grep 'inet addr:'| cut -d: -f2 | awk '{ print $1}')
+        INTERNAL_IP=$(ifconfig "$NETIF" | grep 'inet addr:'| cut -d: -f2 | awk '{ print $1}')
         export INTERNAL_IP
 }
 
 get_net_tx_rx_realtime() {
-        net_txrx=$(sar -n DEV 1 1 | grep $NETIF | tail -n 1 | gawk '{print $5" "$6}')
+        net_txrx=$(sar -n DEV 1 1 | grep "$NETIF" | tail -n 1 | gawk '{print $5" "$6}')
         # in Mb/s
         _tx=$(echo "$net_txrx" | awk '{printf $1}')
         _rx=$(echo "$net_txrx" | awk '{printf $2}')
@@ -133,6 +133,9 @@ oc="/dev/tty$OUTPUT_CONSOLE"
 
 # font setup
 setfont $CONSOLE_FONT > $oc
+
+# Turn off the cursor
+setterm -cursor off > $oc
 
 # Ensure that we are in the right TTY
 chvt $OUTPUT_CONSOLE
