@@ -17,10 +17,6 @@ export CONSOLE_FONT="Lat15-Fixed18"
 # Output Console (ttyX)
 export OUTPUT_CONSOLE="1"
 
-# Network Interface: , wlan0, ....
-NETIF=$(ifconfig | awk 'NR==1{print $1}')
-export NETIF
-
 # SATA HDD mount
 export SATA="/dev/sda"
 
@@ -49,8 +45,10 @@ get_hostname() {
         HOSTNAME=$(hostname)
         export HOSTNAME
 }
-
+# Automatically detect Network Interface
 get_internal_ip() {
+		NETIF=$(ifconfig | awk 'NR==1{print $1}')
+		export NETIF
         INTERNAL_IP=$(ifconfig "$NETIF" | grep 'inet addr:'| cut -d: -f2 | awk '{ print $1}')
         export INTERNAL_IP
 }
