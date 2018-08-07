@@ -47,9 +47,9 @@ get_hostname() {
 }
 # Automatically detect Network Interface
 get_internal_ip() {
-		NETIF=$(ifconfig | awk 'NR==1{print $1}')
+		NETIF=$(ip addr | grep BROADCAST | awk '{print $2}' | tr -d ":")
 		export NETIF
-        INTERNAL_IP=$(ifconfig "$NETIF" | grep 'inet addr:'| cut -d: -f2 | awk '{ print $1}')
+        INTERNAL_IP=$(ip addr show $NETIF | awk 'NR==3{print $2}' | cut -d '/' -f 1)
         export INTERNAL_IP
 }
 
