@@ -7,6 +7,7 @@ if [ -f *.tgz ]; then
 rm ./*.tgz
 fi
 # Check for, and install missing dependencies
+apt update
 required=(checkinstall build-essential software-properties-common samba samba-common rpm curl gawk bc sysstat)
 findmissing() {
         for i in "$@"; do
