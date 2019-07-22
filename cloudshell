@@ -5,7 +5,7 @@
 # requires the following packages:
 # curl sysstat
 #
-# Tested on Ubuntu 14.04 Server image
+# Tested on Ubuntu 16.04 Server image
 
 ############## Configuration
 
@@ -17,14 +17,11 @@ export CONSOLE_FONT="Lat15-Fixed18"
 # Output Console (ttyX)
 export OUTPUT_CONSOLE="1"
 
-# Network Interface: eth0, wlan0, ....
-export NETIF="eth0"
-
 # SATA HDD mount
-export SATA="/dev/sda1"
+export SATA="/dev/sda"
 
 # Screen refresh in seconds
-export REFRESH="3"
+export REFRESH="1"
 
 # CPU Temperature in C or F
 export TEMPERATURE_FORMAT="C"
@@ -32,78 +29,94 @@ export TEMPERATURE_FORMAT="C"
 # External IP Refresh counts
 # The time to update the ip in counts is acquired by using the following formula
 # seconds_to_refresh = EXT_IP_REFRESH * REFRESH
-export EXT_IP_REFRESH="10"
+export EXT_IP_REFRESH="14400"
 
 get_external_ip() {
-	export EXTERNAL_IP=`/usr/bin/curl -s http://mdrjr.net/ip.php`
+        EXTERNAL_IP=$(dig +short myipaddress.opendns.com @resolver1.opendns.com)
+        export EXTERNAL_IP
 }
 
 get_full_date() {
-	export DATE=`date +"%Y-%m-%d %H:%M:%S"`
+        DATE=$(date +"%m-%d-%Y %H:%M:%S")
+        export DATE
 }
 
 get_hostname() {
-	export HOSTNAME=`hostname`
+        HOSTNAME=$(hostname)
+        export HOSTNAME
 }
-
+# Automatically detect Network Interface
 get_internal_ip() {
-	export INTERNAL_IP=`ifconfig $NETIF | grep 'inet addr:'| cut -d: -f2 | awk '{ print $1}'`
+		NETIF=$(ip addr | grep BROADCAST | awk '{print $2}' | tr -d ":")
+		export NETIF
+        INTERNAL_IP=$(ip addr show $NETIF | awk 'NR==3{print $2}' | cut -d '/' -f 1)
+        export INTERNAL_IP
 }
 
 get_net_tx_rx_realtime() {
-	net_txrx=`sar -n DEV 1 1 | grep $NETIF | tail -n 1 | gawk '{print $5" "$6}'`
-	# in MB/s
-	_tx=`echo $net_txrx | awk '{printf $1}'`
-	_rx=`echo $net_txrx | awk '{printf $2}'`
-	export NET_TX=`echo "scale=1; x=$_tx/1024; if(x<1) print 0; x" | bc`
-	export NET_RX=`echo "scale=1; x=$_rx/1024; if(x<1) print 0; x" | bc`
-	
+        net_txrx=$(sar -n DEV 1 1 | grep "$NETIF" | tail -n 1 | gawk '{print $5" "$6}')
+        # in Mb/s
+        _tx=$(echo "$net_txrx" | awk '{printf $1}')
+        _rx=$(echo "$net_txrx" | awk '{printf $2}')
+        NET_TX=$(echo "scale=1; x=$_tx/128; if(x<1) print 0; x" | bc)
+        export NET_TX
+        NET_RX=$(echo "scale=1; x=$_rx/128; if(x<1) print 0; x" | bc)
+        export NET_RX
+
 }
 
 get_disk_info() {
-	t=`df -h | grep $SATA`
-	export DISK_SIZE=`echo $t | awk '{printf $2}'`
-	export DISK_USED=`echo $t | awk '{printf $3}'`
-	export DISK_FREE=`echo $t | awk '{printf $4}'`
-	export DISK_USED_PCT=`echo $t | awk '{printf $5}'`
+        t=$(df -h | grep $SATA)
+        DISK_SIZE=$(echo "$t" | awk '{printf $2}')
+        DISK_USED=$(echo "$t" | awk '{printf $3}')
+        DISK_FREE=$(echo "$t" | awk '{printf $4}')
+        DISK_USED_PCT=$(echo "$t" | awk '{printf $5}')
+        export DISK_SIZE
+        export DISK_USED
+        export DISK_FREE
+        export DISK_USED_PCT
 }
 
 get_memory_info() {
-	# in Mbytes
-	export MEM_FREE=$[`cat /proc/meminfo | grep MemFree | awk '{print $2'}` / 1024]
-	export MEM_TOTAL=$[`cat /proc/meminfo | grep MemTotal | awk '{print $2'}` / 1024]
-	export MEM_USED=$[$MEM_TOTAL - $MEM_FREE]
+        # in Mbytes
+        MEM_FREE=$(($(grep MemFree < /proc/meminfo | awk '{print $2'}) / 1024))
+        MEM_TOTAL=$(($(grep MemTotal < /proc/meminfo | awk '{print $2'}) / 1024))
+        export MEM_USED=$((MEM_TOTAL - MEM_FREE))
 }
 
-get_cpu_usage() { 
-	cpufree=`mpstat 1 1 | tail -n 1 | awk '{printf $12}'`
-	export CPU_USAGE=`echo "scale=1; x=100-$cpufree; if(x<1) print 0; x" | bc`
+get_cpu_usage() {
+        cpufree=$(mpstat 1 1 | tail -n 1 | awk '{printf $12}')
+        CPU_USAGE=$(echo "scale=1; x=100-$cpufree; if(x<1) print 0; x" | bc)
+        export CPU_USAGE
 }
 
 get_cpu_temperature() {
-	_t=$[`cat /sys/class/thermal/thermal_zone0/temp` / 1000]
-	if [ "$TEMPERATURE_FORMAT" = "C" ]; then
-		export CPU_TEMP="$_t"C
-	else
-		_t1=$[ $_t * 9 / 5 + 32 ]
-		export CPU_TEMP="$_t1"F
-	fi
+        _t=$(($(cat /sys/class/thermal/thermal_zone0/temp) / 1000))
+        if [ "$TEMPERATURE_FORMAT" = "C" ]; then
+                export CPU_TEMP="$_t"C
+        else
+                _t1=$((_t * 9 / 5 + 32))
+                export CPU_TEMP="$_t1"F
+        fi
 }
 
 get_samba_connections() {
-	if [ ! -f /usr/bin/smbstatus ]; then
-		export SAMBA_CONNECTIONS=0
-	else
-		export SAMBA_CONNECTIONS=`smbstatus -b | grep -c ipv`
-	fi
+        if [ ! -f /usr/bin/smbstatus ]; then
+                export SAMBA_CONNECTIONS=0
+        else
+                SAMBA_CONNECTIONS=$(smbstatus -b | grep -c ipv)
+                export SAMBA_CONNECTIONS
+        fi
 }
 
-get_nfs_connections() { 
-	export NFS_CONNECTIONS=`netstat -an | grep 2049 | grep -c ESTA`
+get_nfs_connections() {
+        NFS_CONNECTIONS=$(netstat -an | grep 2049 | grep -c ESTA)
+        export NFS_CONNECTIONS
 }
 
-get_process_count() { 
-	export PROCESS_COUNT=`ps xa | wc -l`
+get_process_count() {
+        PROCESS_COUNT=$(ps xa | wc -l)
+        export PROCESS_COUNT
 }
 
 # local variables
@@ -112,6 +125,8 @@ COFF=$(tput sgr0)
 CGREEN=$(tput setaf 2)
 CRED=$(tput setaf 1)
 CBLUE=$(tput setaf 6)
+CYELLOW=$(tput setaf 3)
+CMAGENTA=$(tput setaf 5)
 oc="/dev/tty$OUTPUT_CONSOLE"
 
 # font setup
@@ -126,55 +141,53 @@ chvt $OUTPUT_CONSOLE
 # infinite loop
 while true; do
 
-	# Ensure that we are in the right TTY
-	chvt $OUTPUT_CONSOLE
+        # Ensure that we are in the right TTY
+        chvt $OUTPUT_CONSOLE
 
-	# check if EXT_IP_REFRESH
-	if (( ($ext_ip_refresh_c % $EXT_IP_REFRESH) == 0 )); then
-		get_external_ip
-	fi
-	
-	# increment $ext_ip_refresh_c
-	ext_ip_refresh_c=$[$ext_ip_refresh_c+1]
+        # check if EXT_IP_REFRESH
+        if ((ext_ip_refresh_c % EXT_IP_REFRESH == 0 )); then
+                get_external_ip
+        fi
 
-	# get data
-	get_internal_ip
-	get_hostname
-	get_disk_info
-	get_full_date
-	get_net_tx_rx_realtime
-	get_memory_info
-	get_cpu_usage
-	get_cpu_temperature
-	get_samba_connections
-	get_nfs_connections
-    get_process_count
-    	
-	# clear the screen every loop
-	# we only wipe the screen when we are ready to write data to it
-	clear > $oc
+        # increment $ext_ip_refresh_c
+        ext_ip_refresh_c=$((ext_ip_refresh_c+1))
 
-	# format the data on screen
-	echo "" > $oc
-	echo -e "$CBLUE $HOSTNAME $COFF: $DATE" > $oc
-    echo "" > $oc
-	# line CPU Usage
-	echo -e "CPU Usage: $CBLUE$CPU_USAGE%$COFF   CPU Temp: $CBLUE$CPU_TEMP$COFF" > $oc
-    # Line Memory
-    echo -e "Memory Free: $CBLUE$MEM_FREE MB$COFF   Used: $CBLUE$MEM_USED MB$COFF" > $oc
-	# Line IP Addresses
-	echo -e "IP: $CBLUE$INTERNAL_IP$COFF   Rem: $CBLUE$EXTERNAL_IP$COFF" > $oc
-	# Line network usage
-	echo -e "TX: $CBLUE$NET_TX MB/s$COFF RX: $CBLUE$NET_RX MB/s$COFF" > $oc
-	# Line Disk Space
-	echo -e "Disk Used: $CBLUE$DISK_USED$COFF ($CBLUE$DISK_USED_PCT$COFF)  Free: $CBLUE$DISK_FREE$COFF" > $oc
-    # Line Samba
-    echo -e "Samba Clients: $CBLUE$SAMBA_CONNECTIONS$COFF" > $oc
-    # line NFS
-    echo -e "NFS Connections: $CBLUE$NFS_CONNECTIONS$COFF" > $oc
-	# line Processes
-	echo -e "Processes Running: $CBLUE$PROCESS_COUNT$COFF" > $oc
+        # get data
+        get_internal_ip
+        get_hostname
+        get_disk_info
+        get_full_date
+        get_net_tx_rx_realtime
+        get_memory_info
+        get_cpu_usage
+        get_cpu_temperature
+        get_samba_connections
+        get_nfs_connections
+        get_process_count
 
-	# sleep
-	sleep $REFRESH
+        # clear screen on loop
+        clear > $oc
+
+        # Format data to screen
+        echo "" > $oc
+        echo -e "$CBLUE $HOSTNAME $COFF: $DATE" > $oc
+        echo "" > $oc
+        # line CPU Usage
+        echo -e "CPU Usage: $CGREEN$CPU_USAGE%$COFF   CPU Temp: $CYELLOW$CPU_TEMP$COFF" > $oc
+        # Line Memory
+        echo -e "Memory Free: $CYELLOW$MEM_FREE MB$COFF   Used: $CYELLOW$MEM_USED MB$COFF" > $oc
+        # Line IP Addresses
+        echo -e "IP: $CBLUE$INTERNAL_IP$COFF   Rem: $CBLUE$EXTERNAL_IP$COFF" > $oc
+        # Line network usage
+        echo -e "TX: $CGREEN$NET_TX Mb/s$COFF RX: $CGREEN$NET_RX Mb/s$COFF" > $oc
+        # Line Disk Space
+        echo -e "Disk Used: $CYELLOW$DISK_USED$COFF ($CYELLOW$DISK_USED_PCT$COFF)  Free: $CYELLOW$DISK_FREE$COFF" > $oc
+        # Line Samba
+        echo -e "Samba Clients: $CBLUE$SAMBA_CONNECTIONS$COFF" > $oc
+        # line NFS
+        echo -e "NFS Connections: $CBLUE$NFS_CONNECTIONS$COFF" > $oc
+        # line Processes
+        echo -e "Processes Running: $CRED$PROCESS_COUNT$COFF" > $oc
+        # sleep
+        sleep $REFRESH
 done
