@@ -21,7 +21,7 @@ export OUTPUT_CONSOLE="1"
 export SATA="/dev/sda"
 
 # Screen refresh in seconds
-export REFRESH="0"
+export REFRESH="1"
 
 # CPU Temperature in C or F
 export TEMPERATURE_FORMAT="C"
@@ -29,10 +29,10 @@ export TEMPERATURE_FORMAT="C"
 # External IP Refresh counts
 # The time to update the ip in counts is acquired by using the following formula
 # seconds_to_refresh = EXT_IP_REFRESH * REFRESH
-export EXT_IP_REFRESH="10"
+export EXT_IP_REFRESH="14400"
 
 get_external_ip() {
-        EXTERNAL_IP=$(/usr/bin/curl -s http://mdrjr.net/ip.php)
+        EXTERNAL_IP=$(dig +short myipaddress.opendns.com @resolver1.opendns.com)
         export EXTERNAL_IP
 }
 
